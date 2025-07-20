@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  statistical-process-backend:
+    image: thisclaudio/statistical-process-api:latest
+    container_name: statistical-process-backend
+    ports:
+      - "4000:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      DB_HOST: host.docker.internal
+      DB_USER: sa
+      DB_PASSWORD: Admin@1010
+      DB_NAME: master
+    networks:
+      - app-network
+
+  image-process-backend:
+    image: thisclaudio/image-process-api:latest
+    container_name: image-process-backend
+    ports:
+      - "5000:5000"
+    networks:
+      - app-network
+
+  frontend:
+    image: thisclaudio/statistical-process-front:latest
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    networks:
+      - app-network
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: nginx
+    ports:
+      - "9090:80"
+    networks:
+      - app-network
+
+  sql1:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sql1
+    user: root
+    ports:
+      - "1433:1433"
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: Admin@1010
+      MSSQL_AGENT_ENABLED: "True"
+    volumes:
+      - sqlservervol:/var/opt/mssql/data
+    networks:
+      - app-network
+
+networks:
+  app-network:
+
+volumes:
+  sqlservervol:
