@@ -1,0 +1,12 @@
+[submodule "statistical-process-api"]
+	path = statistical-process-api
+	url = https://github.com/this-claudio/statistical-process-api.git
+[submodule "statistical-process-front"]
+	path = statistical-process-front
+	url = https://github.com/this-claudio/statistical-process-front.git
+[submodule "image-process-api"]
+	path = image-process-api
+	url = https://github.com/this-claudio/image-process-api.git
+[submodule "cam-meter-poc"]
+	path = cam-meter-poc
+	url = https://github.com/this-claudio/cam-meter-POC.git
