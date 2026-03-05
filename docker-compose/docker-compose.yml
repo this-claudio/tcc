@@ -1,43 +1,69 @@
 version: '3.8'
 
 services:
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "9090:80"       # Porta HTTP principal (usando 9090 porque a imagem do front tem um .env.local configurado no build para essa porta)
+      - "8080:8080"   # Dashboard do Traefik
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+    networks:
+      - app-network
+
   statistical-process-backend:
     image: thisclaudio/statistical-process-api:latest
     container_name: statistical-process-backend
-    ports:
-      - "4000:8080"
+    # Garante que o banco suba antes da API tentar se conectar
+    depends_on:
+      - sql1
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      DB_HOST: host.docker.internal
+      DB_HOST: sql1
       DB_USER: sa
       DB_PASSWORD: Admin@1010
       DB_NAME: master
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.stats-backend.rule=PathPrefix(`/gateway/statistical-process-backend`)"
+      - "traefik.http.routers.stats-backend.entrypoints=web"
+      # Middleware para remover o prefixo (Equivalente ao rewrite do Nginx)
+      - "traefik.http.middlewares.stats-strip.stripprefix.prefixes=/gateway/statistical-process-backend"
+      - "traefik.http.routers.stats-backend.middlewares=stats-strip"
+      - "traefik.http.services.stats-backend.loadbalancer.server.port=8080"
     networks:
       - app-network
 
   image-process-backend:
     image: thisclaudio/image-process-api:latest
     container_name: image-process-backend
-    ports:
-      - "5000:5000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.image-backend.rule=PathPrefix(`/gateway/image-process-backend`)"
+      - "traefik.http.routers.image-backend.entrypoints=web"
+      # Middleware para remover o prefixo
+      - "traefik.http.middlewares.image-strip.stripprefix.prefixes=/gateway/image-process-backend"
+      - "traefik.http.routers.image-backend.middlewares=image-strip"
+      - "traefik.http.services.image-backend.loadbalancer.server.port=5000"
     networks:
       - app-network
 
   frontend:
     image: thisclaudio/statistical-process-front:latest
     container_name: frontend
-    ports:
-      - "3000:3000"
-    networks:
-      - app-network
-
-  nginx:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
-    container_name: nginx
-    ports:
-      - "9090:80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.routers.frontend.entrypoints=web"
+      # O frontend tem menor prioridade por ser o caminho "/"
+      - "traefik.http.routers.frontend.priority=1"
+      - "traefik.http.services.frontend.loadbalancer.server.port=3000"
     networks:
       - app-network
 
@@ -45,8 +71,6 @@ services:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: sql1
     user: root
-    ports:
-      - "1433:1433"
     environment:
       ACCEPT_EULA: "Y"
       MSSQL_SA_PASSWORD: Admin@1010
